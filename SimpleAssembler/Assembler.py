@@ -2,11 +2,71 @@ import sys
 import os
 import re
 
-OPCODES={"ADD" : 3, "SUB" : 3, "AND" : 3, "OR" : 3, "ADDI" : 3, "LW" : 2, "SW" : 2, "BEQ" : 3, "BNE" : 3, "J" : 1}
+opcodes={
+
+
+# R-TYPE
+
+"add":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0000000", "operands": 3},
+"sub":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0100000", "operands": 3},
+"sll":  {"format": "R", "opcode": "0110011", "funct3": "001", "funct7": "0000000", "operands": 3},
+"slt":  {"format": "R", "opcode": "0110011", "funct3": "010", "funct7": "0000000", "operands": 3},
+"sltu": {"format": "R", "opcode": "0110011", "funct3": "011", "funct7": "0000000", "operands": 3},
+"xor":  {"format": "R", "opcode": "0110011", "funct3": "100", "funct7": "0000000", "operands": 3},
+"srl":  {"format": "R", "opcode": "0110011", "funct3": "101", "funct7": "0000000", "operands": 3},
+"sra":  {"format": "R", "opcode": "0110011", "funct3": "101", "funct7": "0100000", "operands": 3},
+"or":   {"format": "R", "opcode": "0110011", "funct3": "110", "funct7": "0000000", "operands": 3},
+"and":  {"format": "R", "opcode": "0110011", "funct3": "111", "funct7": "0000000", "operands": 3},
+
+# I-TYPE 
+
+"addi":  {"format": "I", "opcode": "0010011", "funct3": "000", "operands": 3},
+"slti":  {"format": "I", "opcode": "0010011", "funct3": "010", "operands": 3},
+"sltiu": {"format": "I", "opcode": "0010011", "funct3": "011", "operands": 3},
+"xori":  {"format": "I", "opcode": "0010011", "funct3": "100", "operands": 3},
+"ori":   {"format": "I", "opcode": "0010011", "funct3": "110", "operands": 3},
+"andi":  {"format": "I", "opcode": "0010011", "funct3": "111", "operands": 3},
+
+"slli": {"format": "I", "opcode": "0010011", "funct3": "001", "funct7": "0000000", "operands": 3},
+"srli": {"format": "I", "opcode": "0010011", "funct3": "101", "funct7": "0000000", "operands": 3},
+"srai": {"format": "I", "opcode": "0010011", "funct3": "101", "funct7": "0100000", "operands": 3},
+
+
+# LOADS
+
+"lb":  {"format": "I", "opcode": "0000011", "funct3": "000", "operands": 2},
+"lh":  {"format": "I", "opcode": "0000011", "funct3": "001", "operands": 2},
+"lw":  {"format": "I", "opcode": "0000011", "funct3": "010", "operands": 2},
+"lbu": {"format": "I", "opcode": "0000011", "funct3": "100", "operands": 2},
+"lhu": {"format": "I", "opcode": "0000011", "funct3": "101", "operands": 2},
+
+#storing 
+"sb": {"format": "S", "opcode": "0100011", "funct3": "000", "operands": 2},
+"sh": {"format": "S", "opcode": "0100011", "funct3": "001", "operands": 2},
+"sw": {"format": "S", "opcode": "0100011", "funct3": "010", "operands": 2},
+
+#branching 
+"beq":  {"format": "B", "opcode": "1100011", "funct3": "000", "operands": 3},
+"bne":  {"format": "B", "opcode": "1100011", "funct3": "001", "operands": 3},
+"blt":  {"format": "B", "opcode": "1100011", "funct3": "100", "operands": 3},
+"bge":  {"format": "B", "opcode": "1100011", "funct3": "101", "operands": 3},
+"bltu": {"format": "B", "opcode": "1100011", "funct3": "110", "operands": 3},
+"bgeu": {"format": "B", "opcode": "1100011", "funct3": "111", "operands": 3},
+
+
+# jump
+
+"jal":  {"format": "J", "opcode": "1101111", "operands": 2},
+"jalr": {"format": "I", "opcode": "1100111", "funct3": "000", "operands": 2},
+
+# u type 
+"lui":   {"format": "U", "opcode": "0110111", "operands": 2},
+"auipc": {"format": "U", "opcode": "0010111", "operands": 2},
+}
 
 def extract_filepaths() :
     """ 
-    Extracts file paths from command line arguments.
+    Extracts file paths from command instructionline arguments.
     Expected usage:
     python3 Assembler.py <input_file> <output_file> [readable_output_file]
 
@@ -24,32 +84,32 @@ def extract_filepaths() :
 
     return input_path,output_path,readable_outputpath
 
-def reg_checker(reg) :
-    if not reg.startswith("x") :
+def reg_checker(register) :
+    if not register.startswith("x") :
         return False
 
-    n = reg[1:]
+    n=register[1:]
 
-    return n.isdigit() and 0 <= int(n) <= 31
+    return n.isdigit() and 0<=int(n)<= 31
 
-def valid_instruction(line , n) :
-    line = line.split("#")[0].strip()
+def valid_instruction(instructionline , n) :
+    instructionline=instructionline.split("#")[0].strip()
     
-    if line == "" :
+    if instructionline=="" :
         return False
     
-    part = line.replace(",", " ").split()
+    part = instructionline.replace(",", " ").split()
     
-    opcode = part[0].upper()
+    opcode=part[0]
     
-    if opcode not in OPCODES :
+    if opcode not in opcodes:
         print(f"Syntax Error (Line {n}): Invalid opcode '{opcode}'")
         sys.exit(1)
         
-    operands = part[1:]
+    operands=part[1:]
     
-    if len(operands) != OPCODES[opcode] :
-        print(f"Syntax Error (Line {n}): Expected {OPCODES[opcode]} operands for '{opcode}', got {len(operands)}")
+    if len(operands) != opcodes[opcode]["operands"] :
+        print(f"Syntax Error (Line {n}): Expected {opcodes[opcode]} operands for '{opcode}', got {len(operands)}")
         sys.exit(1)
     
     for i in operands :
@@ -58,7 +118,7 @@ def valid_instruction(line , n) :
                 print(f"Syntax Error (Line {n}): Invalid register '{i}'")
                 sys.exit(1)
     
-    return line
+    return instructionline
     
 def view_assemblycode(input_path) :
 
@@ -72,8 +132,8 @@ def view_assemblycode(input_path) :
         with open(input_path,"r") as file :
             
             m = 1 
-            for line in file :
-                good = valid_instruction(line, m)
+            for instructionline in file :
+                good = valid_instruction(instructionline, m)
                 if good :
                     instructions.append(good)
                 m+=1
@@ -87,8 +147,8 @@ def view_assemblycode(input_path) :
 def write_output(output_path, binary) :
     try :
         with open(output_path,"w") as file :
-            for line in binary :
-                file.write(line +"\n")
+            for instructionline in binary :
+                file.write(instructionline +"\n")
     except Exception as exc :
         print(f"Error while writing output file:{exc}")
         sys.exit(1)
@@ -96,8 +156,8 @@ def write_output(output_path, binary) :
 def write_readableoutput(readable_outputpath, binary) :
     try :
         with open(readable_outputpath,"w") as file :
-            for line in binary :
-                file.write(line +"\n")
+            for instructionline in binary :
+                file.write(instructionline +"\n")
     except Exception as exc :
         print(f"Error while writing readable output file:{exc}")
         sys.exit(1)
