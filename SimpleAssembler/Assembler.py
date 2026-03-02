@@ -179,6 +179,10 @@ def translate_assemblycode(instructions,binary_lines):
                     register2=translate_register(operands[1])        #r2
                     offset,base=operands[2].split("(")               #offset=imm, base=r1)
                     offset=int(offset)
+
+                    if (offset < -2048) or (offset > 2047):      #2's complement range
+                        print("error!")                 
+                              
                     register1=translate_register(base.replace(")",""))  #r1
 
                     imm = format(offset & 0xFFF,"012b")
@@ -272,6 +276,7 @@ def main():
     
     write_output(output_path,binary_lines)
     write_readableoutput(readable_outputpath,readable)
+
 
 
 
