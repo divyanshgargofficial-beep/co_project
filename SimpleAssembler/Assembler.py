@@ -178,12 +178,13 @@ def translate_assemblycode(instructions,binary_lines):
                 if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="S") :  #sw r2,imm(r1)
                     register2=translate_register(operands[1])        #r2
                     offset,base=operands[2].split("(")               #offset=imm, base=r1)
+                    offset=int(offset)
                     register1=translate_register(base.replace(")",""))  #r1
 
                     imm = format(offset & 0xFFF,"012b")
                     
-                    imm11_5=imm[0:6]
-                    imm4_0=imm[7:11]
+                    imm11_5=imm[0:7]
+                    imm4_0=imm[7:12]
 
                     binarystring= (
                         imm11_5 + register2 + register1 + opcodes[operands[0]]["funct3"] + imm4_0 + opcodes[operands[0]]["opcode"]
@@ -271,5 +272,6 @@ def main():
     
     write_output(output_path,binary_lines)
     write_readableoutput(readable_outputpath,readable)
+
 
 
