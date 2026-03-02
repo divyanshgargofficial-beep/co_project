@@ -5,7 +5,7 @@ import re
 opcodes={
 
 
-
+# R-TYPE
 
 "add":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0000000", "operands": 3},
 "sub":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0100000", "operands": 3},
@@ -175,6 +175,22 @@ def translate_assemblycode(instructions,binary_lines):
                 instruction=instruction.replace(","," ")
                 operands=instruction.split()
 
+                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="S") :  #sw r2,imm(r1)
+                    register2=translate_register(operands[1])        #r2
+                    offset,base=operands[2].split("(")               #offset=imm, base=r1)
+                    register1=translate_register(base.replace(")",""))  #r1
+
+                    imm = format(offset & 0xFFF,"012b")
+                    
+                    imm11_5=imm[0:6]
+                    imm4_0=imm[7:11]
+
+                    binarystring= (
+                        imm11_5 + register2 + register1 + opcodes[operands[0]]["funct3"] + imm4_0 + opcodes[operands[0]]["opcode"]
+                    )
+
+                    binary_lines.append(binarystring)
+                    
                 if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="B") :
                     register1=translate_register(operands[1])
                     register2=translate_register(operands[2])
@@ -255,4 +271,5 @@ def main():
     
     write_output(output_path,binary_lines)
     write_readableoutput(readable_outputpath,readable)
+
 
