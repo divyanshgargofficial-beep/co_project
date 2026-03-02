@@ -5,7 +5,7 @@ import re
 opcodes={
 
 
-# R-TYPE
+
 
 "add":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0000000", "operands": 3},
 "sub":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0100000", "operands": 3},
@@ -92,6 +92,32 @@ def reg_checker(register) :
 
     return n.isdigit() and 0<=int(n)<= 31
 
+def build_label_table(instructions):
+    label_table = {}
+    program_counter = 0
+    cleaned = []
+
+    for line in instructions:
+        if ":" in line:
+            label = line.replace(":", "").strip()
+            label_table[label] = program_counter
+
+        else:
+            cleaned.append(line)
+            program_counter += 4
+
+    return label_table, cleaned
+
+def compute_offset(label, current_pc, label_table):
+    if label not in label_table:
+        print(f"Error: Undefined label '{label}'")
+        sys.exit(1)
+
+    return label_table[label] - current_pc
+
+def translate_register():
+    return None
+
 def valid_instruction(instructionline , n) :
     instructionline=instructionline.split("#")[0].strip()
     
@@ -144,6 +170,59 @@ def view_assemblycode(input_path) :
         print(f"Error while reading input file: {exc}")
         sys.exit(1)
 
+def translate_assemblycode(instructions,binary_lines):
+    for instruction in instructions :
+                instruction=instruction.replace(","," ")
+                operands=instruction.split()
+
+                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="B") :
+                    register1=translate_register(operands[1])
+                    register2=translate_register(operands[2])
+
+                    label=operands[3]
+
+                    offset=compute_offset(label,pc,label_table)
+
+                    imm = format((offset >> 1) & 0x1FFF, "013b")
+
+                    imm12 = imm[0]
+                    imm10_5 = imm[1:7]
+                    imm4_1 = imm[7:11]
+                    imm11 = imm[11]
+
+                    binarystring = (
+                            imm12 +imm10_5 +rs2 +rs1 +opcodes[operands[0]]["funct3"] +imm4_1 +imm11 +opcodes[operands[0]]["opcode"]
+                    )
+
+                    binary_lines.append(binarystring)
+
+                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="J") :
+                    rd = translate_register(operands[1])
+                    label = operands[2]
+
+                    offset = compute_offset(label, pc, label_table)
+
+                    imm = format((offset >> 1) & 0x1FFFFF, "021b")
+
+                    imm20 = imm[0]
+                    imm10_1 = imm[10:20]
+                    imm11 = imm[9]
+                    imm19_12 = imm[1:9]
+
+                    binarystring = (
+                            imm20 +imm10_1 +imm11+imm19_12 +rd +opcodes["jal"]["opcode"]
+                    )
+                    
+                    binary_lines.append(binarystring)
+
+
+
+
+
+
+
+
+
 def write_output(output_path, binary) :
     try :
         with open(output_path,"w") as file :
@@ -164,13 +243,16 @@ def write_readableoutput(readable_outputpath, binary) :
 
 def main():
     input_path, output_path, readable_path=extract_filepaths()
-    assembly_lines=view_assemblycode
+    assembly_lines=view_assemblycode(input_path)
 
 #assembler logic , we will generate binary output here and readable binary output
 
-# binary_lines=[] , generated after logic implementation
-#readable=[], readable binary output 
-
-write_output(output_path,binary_lines)
-write_readableoutput(readable_outputpath,readable)
+    binary_lines=[] #, generated after logic implementation
+    readable=[], #readable binary output
+    
+    translate_assemblycode(assembly_lines,binary_lines)
+    
+    
+    write_output(output_path,binary_lines)
+    write_readableoutput(readable_outputpath,readable)
 
