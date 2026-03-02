@@ -2,7 +2,20 @@ import sys
 import os
 import re
 
-opcodes={
+
+abi = {
+    "zero":0, "ra":1, "sp":2, "gp":3, "tp":4,
+    "t0":5, "t1":6, "t2":7,
+    "s0":8, "fp":8, "s1":9,
+    "a0":10,"a1":11,"a2":12,"a3":13,"a4":14,"a5":15,"a6":16,"a7":17,
+    "s2":18,"s3":19,"s4":20,"s5":21,"s6":22,"s7":23,"s8":24,"s9":25,"s10":26,"s11":27,
+    "t3":28,"t4":29,"t5":30,"t6":31
+}
+
+def reg_to_bin(reg):
+    return format(abi[reg], "05b")
+
+Opcodes={
 
 
 # R-TYPE
@@ -102,14 +115,14 @@ def valid_instruction(instructionline , n) :
     
     opcode=part[0]
     
-    if opcode not in opcodes:
+    if opcode not in Opcodes:
         print(f"Syntax Error (Line {n}): Invalid opcode '{opcode}'")
         sys.exit(1)
         
     operands=part[1:]
     
-    if len(operands) != opcodes[opcode]["operands"] :
-        print(f"Syntax Error (Line {n}): Expected {opcodes[opcode]} operands for '{opcode}', got {len(operands)}")
+    if len(operands) != Opcodes[opcode]["operands"] :
+        print(f"Syntax Error (Line {n}): Expected {Opcodes[opcode]['operands']} operands for '{opcode}', got {len(operands)}")
         sys.exit(1)
     
     for i in operands :
@@ -161,16 +174,92 @@ def write_readableoutput(readable_outputpath, binary) :
     except Exception as exc :
         print(f"Error while writing readable output file:{exc}")
         sys.exit(1)
+        
+def bin_to_hex(bin_str):
+    decimal = int(bin_str, 2)
+    return format(decimal, '08x')
+
+def assemble_to_binary(assembly_lines, opcodes):
+    binary_lines = []
+    for line in assembly_lines:
+        parts = line.replace(",", " ").split()
+        opcode = parts[0]
+        operands = parts[1:]
+        
+        instruction_format = opcodes[opcode]["format"]
+        
+        if instruction_format == "R":
+            rd = reg_to_bin(operands[0])
+            rs1 = reg_to_bin(operands[1])
+            rs2 = reg_to_bin(operands[2])
+            funct7 = opcodes[opcode]["funct7"]
+            funct3 = opcodes[opcode]["funct3"]
+            op = opcodes[opcode]["opcode"]
+            binary = funct7 + rs2 + rs1 + funct3 + rd + op
+            
+        elif instruction_format == "I":
+            rd = reg_to_bin(operands[0])
+            rs1 = reg_to_bin(operands[1])
+            imm = int(operands[2])
+            imm_binary = format(imm & 0xFFF, "012b")
+            funct3 = opcodes[opcode]["funct3"]
+            op = opcodes[opcode]["opcode"]
+            binary = imm_binary + rs1 + funct3 + rd + op
+            
+        elif instruction_format == "S":
+            rs2 = reg_to_bin(operands[0])
+            offset_part = operands[1].split("(")
+            imm = int(offset_part[0])
+            rs1 = reg_to_bin(offset_part[1].rstrip(")"))
+            imm_binary = format(imm & 0xFFF, "012b")
+            funct3 = opcodes[opcode]["funct3"]
+            op = opcodes[opcode]["opcode"]
+            imm_upper = imm_binary[:7]
+            imm_lower = imm_binary[7:]
+            binary = imm_upper + rs2 + rs1 + funct3 + imm_lower + op
+            
+        elif instruction_format == "B":
+            rs1 = reg_to_bin(operands[0])
+            rs2 = reg_to_bin(operands[1])
+            imm = int(operands[2])
+            imm_binary = format(imm & 0x1FFF, "013b")
+            funct3 = opcodes[opcode]["funct3"]
+            op = opcodes[opcode]["opcode"]
+            binary = imm_binary[0] + imm_binary[1:7] + rs2 + rs1 + funct3 + imm_binary[7:12] + imm_binary[12] + op
+            
+        elif instruction_format == "U":
+            rd = reg_to_bin(operands[0])
+            imm = int(operands[1])
+            imm_binary = format(imm & 0xFFFFF, "020b")
+            op = opcodes[opcode]["opcode"]
+            binary = imm_binary + rd + op
+            
+        elif instruction_format == "J":
+            rd = reg_to_bin(operands[0])
+            imm = int(operands[1])
+            imm_binary = format(imm & 0x1FFFFF, "021b")
+            op = opcodes[opcode]["opcode"]
+            binary = imm_binary[0] + imm_binary[1:11] + imm_binary[11] + imm_binary[12:20] + rd + op
+        
+        hex_value = bin_to_hex(binary)
+        binary_lines.append(hex_value)
+    
+    return binary_lines
 
 def main():
-    input_path, output_path, readable_path=extract_filepaths()
-    assembly_lines=view_assemblycode
+    input_path, output_path, readable_path = extract_filepaths()
+    
+    assembly_lines = view_assemblycode(input_path)
 
-#assembler logic , we will generate binary output here and readable binary output
+    binary_lines = assemble_to_binary(assembly_lines, Opcodes)
 
-# binary_lines=[] , generated after logic implementation
-#readable=[], readable binary output 
+    readable = binary_lines  
 
-write_output(output_path,binary_lines)
-write_readableoutput(readable_outputpath,readable)
+    write_output(output_path, binary_lines)
 
+    if readable_path:
+        write_readableoutput(readable_path, readable)
+
+
+if __name__ == "__main__":
+    main()
