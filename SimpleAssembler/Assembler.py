@@ -175,13 +175,41 @@ def translate_assemblycode(instructions,binary_lines):
                 instruction=instruction.replace(","," ")
                 operands=instruction.split()
 
+        
+                #I type instruction code
+                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="I") :  
+                    rd=translate_register(operands[1])
+
+                    if (operands[0]=="lw") or (operands[0]=="jalr"):
+                        offset,base=operands[2].split("(")
+                        register1=translate_register(base.replace(")",""))  #r1
+                        
+                    else:
+                        offset=operands[3]
+                        register1=translate_register(operands[2])
+                    
+                    offset=int(offset)
+                    if (offset < -2048) or (offset > 2047):
+                            print("error!")
+                            sys.exit(1)
+
+                    imm = format(offset & 0xFFF,"012b")
+
+                    binarystring =(
+                        imm + register1 + opcodes[operands[0]]["funct3"] + rd + opcodes[operands[0]]["opcode"] 
+                    )
+
+                    binary_lines.append(binarystring)
+
+                #S type instruction code
                 if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="S") :  #sw r2,imm(r1)
                     register2=translate_register(operands[1])        #r2
                     offset,base=operands[2].split("(")               #offset=imm, base=r1)
                     offset=int(offset)
 
                     if (offset < -2048) or (offset > 2047):      #2's complement range
-                        print("error!")                 
+                        print("error!")
+                        sys.exit(1)
                               
                     register1=translate_register(base.replace(")",""))  #r1
 
@@ -276,6 +304,7 @@ def main():
     
     write_output(output_path,binary_lines)
     write_readableoutput(readable_outputpath,readable)
+
 
 
 
