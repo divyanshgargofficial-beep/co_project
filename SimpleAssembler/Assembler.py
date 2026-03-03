@@ -202,7 +202,7 @@ def view_assemblycode(input_path) :
         print(f"Error while reading input file: {exc}")
         sys.exit(1)
 
-def translate_assemblycode(instructions, binary_lines, labels):
+def translate_assemblycode(instructions, binary_lines, label_table):
     pc = 0
     for instruction in instructions :
                 instruction=instruction.replace(","," ")
@@ -307,6 +307,7 @@ def translate_assemblycode(instructions, binary_lines, labels):
                     )
 
                     binary_lines.append(binarystring)
+                if (operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "U"):
 
                 elif(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="J") :
                     rd = reg_to_bin(operands[1])
