@@ -180,7 +180,7 @@ def bin_to_hex(bin_str):
     return format(decimal, '08x')
 
 def assemble_to_binary(assembly_lines, opcodes):
-    binary_lines = []
+    binary_lines = [] 
     for line in assembly_lines:
         parts = line.replace(",", " ").split()
         opcode = parts[0]
