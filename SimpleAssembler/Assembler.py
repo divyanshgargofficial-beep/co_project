@@ -193,22 +193,58 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     rs1 = reg_to_bin(operands[2])
                     rs2 = reg_to_bin(operands[3])
 
-                    instruction_info = Opcodes[operands[0]]
+        
+                #I type instruction code
+                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="I") :  
+                    rd=translate_register(operands[1])
 
-                    binarystring = (
-                        instruction_info["funct7"] +
-                        rs2 +
-                        rs1 +
-                        instruction_info["funct3"] +
-                        rd +
-                        instruction_info["opcode"]
+                    if (operands[0]=="lw") or (operands[0]=="jalr"):
+                        offset,base=operands[2].split("(")
+                        register1=translate_register(base.replace(")",""))  #r1
+                        
+                    else:
+                        offset=operands[3]
+                        register1=translate_register(operands[2])
+                    
+                    offset=int(offset)
+                    if (offset < -2048) or (offset > 2047):
+                            print("error!")
+                            sys.exit(1)
+
+                    imm = format(offset & 0xFFF,"012b")
+
+                    binarystring =(
+                        imm + register1 + opcodes[operands[0]]["funct3"] + rd + opcodes[operands[0]]["opcode"] 
                     )
 
-                binary_lines.append(binarystring)
+                    binary_lines.append(binarystring)
 
-                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="B") :
-                    rs1=reg_to_bin(operands[1])
-                    rs2=reg_to_bin(operands[2])
+                #S type instruction code
+                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="S") :  #sw r2,imm(r1)
+                    register2=translate_register(operands[1])        #r2
+                    offset,base=operands[2].split("(")               #offset=imm, base=r1)
+                    offset=int(offset)
+
+                    if (offset < -2048) or (offset > 2047):      #2's complement range
+                        print("error!")
+                        sys.exit(1)
+                              
+                    register1=translate_register(base.replace(")",""))  #r1
+
+                    imm = format(offset & 0xFFF,"012b")
+                    
+                    imm11_5=imm[0:7]
+                    imm4_0=imm[7:12]
+
+                    binarystring= (
+                        imm11_5 + register2 + register1 + opcodes[operands[0]]["funct3"] + imm4_0 + opcodes[operands[0]]["opcode"]
+                    )
+
+                    binary_lines.append(binarystring)
+                    
+                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="B") :
+                    register1=translate_register(operands[1])
+                    register2=translate_register(operands[2])
 
                     label=operands[3]
 
