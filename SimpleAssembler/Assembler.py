@@ -189,7 +189,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
 
         
                 #I type instruction code
-                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="I") :  
+                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="I") :  
                     rd=translate_register(operands[1])
 
                     if (operands[0]=="lw") or (operands[0]=="jalr"):
@@ -208,13 +208,13 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     imm = format(offset & 0xFFF,"012b")
 
                     binarystring =(
-                        imm + register1 + opcodes[operands[0]]["funct3"] + rd + opcodes[operands[0]]["opcode"] 
+                        imm + register1 + Opcodes[operands[0]]["funct3"] + rd + Opcodes[operands[0]]["opcode"] 
                     )
 
                     binary_lines.append(binarystring)
 
                 #S type instruction code
-                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="S") :  #sw r2,imm(r1)
+                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="S") :  #sw r2,imm(r1)
                     register2=translate_register(operands[1])        #r2
                     offset,base=operands[2].split("(")               #offset=imm, base=r1)
                     offset=int(offset)
@@ -231,7 +231,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     imm4_0=imm[7:12]
 
                     binarystring= (
-                        imm11_5 + register2 + register1 + opcodes[operands[0]]["funct3"] + imm4_0 + opcodes[operands[0]]["opcode"]
+                        imm11_5 + register2 + register1 + Opcodes[operands[0]]["funct3"] + imm4_0 + Opcodes[operands[0]]["opcode"]
                     )
 
                     binary_lines.append(binarystring)
