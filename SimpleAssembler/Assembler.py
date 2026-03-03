@@ -126,8 +126,6 @@ def compute_offset(label, current_pc, label_table):
 
     return label_table[label] - current_pc
 
-def translate_register():
-    return None
 
 def valid_instruction(instructionline , n) :
     instructionline=instructionline.split("#")[0].strip()
@@ -190,15 +188,15 @@ def translate_assemblycode(instructions, binary_lines, label_table):
         
                 #I type instruction code
                 if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="I") :  
-                    rd=translate_register(operands[1])
+                    rd=reg_to_bin(operands[1])
 
                     if (operands[0]=="lw") or (operands[0]=="jalr"):
                         offset,base=operands[2].split("(")
-                        register1=translate_register(base.replace(")",""))  #r1
+                        register1=reg_to_bin(base.replace(")",""))  #r1
                         
                     else:
                         offset=operands[3]
-                        register1=translate_register(operands[2])
+                        register1=reg_to_bin(operands[2])
                     
                     offset=int(offset)
                     if (offset < -2048) or (offset > 2047):
@@ -215,7 +213,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
 
                 #S type instruction code
                 if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="S") :  #sw r2,imm(r1)
-                    register2=translate_register(operands[1])        #r2
+                    register2=reg_to_bin(operands[1])        #r2
                     offset,base=operands[2].split("(")               #offset=imm, base=r1)
                     offset=int(offset)
 
@@ -223,7 +221,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                         print("error!")
                         sys.exit(1)
                               
-                    register1=translate_register(base.replace(")",""))  #r1
+                    register1=reg_to_bin(base.replace(")",""))  #r1
 
                     imm = format(offset & 0xFFF,"012b")
                     
@@ -285,7 +283,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     binary_lines.append(binarystring)
 
                 if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="J") :
-                    rd = translate_register(operands[1])
+                    rd = reg_to_bin(operands[1])
                     label = operands[2]
 
                     offset = compute_offset(label, pc, label_table)
