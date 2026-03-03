@@ -2,8 +2,19 @@ import sys
 import os
 import re
 
-opcodes={
+abi = {
+    "zero":0, "ra":1, "sp":2, "gp":3, "tp":4,
+    "t0":5, "t1":6, "t2":7,
+    "s0":8, "fp":8, "s1":9,
+    "a0":10,"a1":11,"a2":12,"a3":13,"a4":14,"a5":15,"a6":16,"a7":17,
+    "s2":18,"s3":19,"s4":20,"s5":21,"s6":22,"s7":23,"s8":24,"s9":25,"s10":26,"s11":27,
+    "t3":28,"t4":29,"t5":30,"t6":31
+}
 
+def reg_to_bin(reg):
+    return format(abi[reg], "05b")
+
+Opcodes={
 
 # R-TYPE
 
@@ -128,14 +139,14 @@ def valid_instruction(instructionline , n) :
     
     opcode=part[0]
     
-    if opcode not in opcodes:
+    if opcode not in Opcodes:
         print(f"Syntax Error (Line {n}): Invalid opcode '{opcode}'")
         sys.exit(1)
         
     operands=part[1:]
     
-    if len(operands) != opcodes[opcode]["operands"] :
-        print(f"Syntax Error (Line {n}): Expected {opcodes[opcode]} operands for '{opcode}', got {len(operands)}")
+    if len(operands) != Opcodes[opcode]["operands"] :
+        print(f"Syntax Error (Line {n}): Expected {Opcodes[opcode]['operands']} operands for '{opcode}', got {len(operands)}")
         sys.exit(1)
     
     for i in operands :
@@ -170,7 +181,8 @@ def view_assemblycode(input_path) :
         print(f"Error while reading input file: {exc}")
         sys.exit(1)
 
-def translate_assemblycode(instructions,binary_lines):
+def translate_assemblycode(instructions, binary_lines, label_table):
+    pc = 0
     for instruction in instructions :
                 instruction=instruction.replace(","," ")
                 operands=instruction.split()
@@ -223,14 +235,41 @@ def translate_assemblycode(instructions,binary_lines):
                     )
 
                     binary_lines.append(binarystring)
-                    
-                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="B") :
-                    register1=translate_register(operands[1])
-                    register2=translate_register(operands[2])
+                                    
+                if operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "R":
+
+                    rd  = reg_to_bin(operands[1])
+                    rs1 = reg_to_bin(operands[2])
+                    rs2 = reg_to_bin(operands[3])
+
+                    instruction_info = Opcodes[operands[0]]
+
+                    binarystring = (
+                        instruction_info["funct7"] +
+                        rs2 +
+                        rs1 +
+                        instruction_info["funct3"] +
+                        rd +
+                        instruction_info["opcode"]
+                    )
+
+                binary_lines.append(binarystring)
+
+                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="B") :
+                    rs1=reg_to_bin(operands[1])
+                    rs2=reg_to_bin(operands[2])
 
                     label=operands[3]
 
-                    offset=compute_offset(label,pc,label_table)
+                    offset=compute_offset(label, pc, label_table)
+                    
+                    if offset % 2 != 0:
+                        print("Error: Branch offset must be 2-byte aligned")
+                        sys.exit(1)
+                        
+                    imm = offset
+                    if imm < 0:
+                        imm = (1 << 13) + imm
 
                     imm = format((offset >> 1) & 0x1FFF, "013b")
 
@@ -240,12 +279,12 @@ def translate_assemblycode(instructions,binary_lines):
                     imm11 = imm[11]
 
                     binarystring = (
-                            imm12 +imm10_5 +rs2 +rs1 +opcodes[operands[0]]["funct3"] +imm4_1 +imm11 +opcodes[operands[0]]["opcode"]
+                            imm12 +imm10_5 +rs2 +rs1 +Opcodes[operands[0]]["funct3"] +imm4_1 +imm11 +Opcodes[operands[0]]["opcode"]
                     )
 
                     binary_lines.append(binarystring)
 
-                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="J") :
+                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="J") :
                     rd = translate_register(operands[1])
                     label = operands[2]
 
@@ -259,18 +298,10 @@ def translate_assemblycode(instructions,binary_lines):
                     imm19_12 = imm[1:9]
 
                     binarystring = (
-                            imm20 +imm10_1 +imm11+imm19_12 +rd +opcodes["jal"]["opcode"]
+                            imm20 +imm10_1 +imm11+imm19_12 +rd +Opcodes["jal"]["opcode"]
                     )
                     
                     binary_lines.append(binarystring)
-
-
-
-
-
-
-
-
 
 def write_output(output_path, binary) :
     try :
@@ -289,23 +320,23 @@ def write_readableoutput(readable_outputpath, binary) :
     except Exception as exc :
         print(f"Error while writing readable output file:{exc}")
         sys.exit(1)
-
+        
 def main():
     input_path, output_path, readable_path=extract_filepaths()
     assembly_lines=view_assemblycode(input_path)
 
-#assembler logic , we will generate binary output here and readable binary output
+    label_table, cleaned_instructions = build_label_table(assembly_lines)
 
-    binary_lines=[] #, generated after logic implementation
-    readable=[], #readable binary output
+    binary_lines = []
+    readable = []
     
-    translate_assemblycode(assembly_lines,binary_lines)
+    translate_assemblycode(cleaned_instructions, binary_lines, label_table)
     
-    
-    write_output(output_path,binary_lines)
-    write_readableoutput(readable_outputpath,readable)
+    write_output(output_path, binary_lines)
+
+    if readable_path:
+        write_readableoutput(readable_path, readable)
 
 
-
-
-
+if __name__ == "__main__":
+    main()
