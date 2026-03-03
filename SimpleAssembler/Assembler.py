@@ -2,7 +2,6 @@ import sys
 import os
 import re
 
-
 abi = {
     "zero":0, "ra":1, "sp":2, "gp":3, "tp":4,
     "t0":5, "t1":6, "t2":7,
@@ -17,8 +16,7 @@ def reg_to_bin(reg):
 
 Opcodes={
 
-
-
+# R-TYPE
 
 "add":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0000000", "operands": 3},
 "sub":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0100000", "operands": 3},
@@ -183,18 +181,46 @@ def view_assemblycode(input_path) :
         print(f"Error while reading input file: {exc}")
         sys.exit(1)
 
-def translate_assemblycode(instructions,binary_lines):
+def translate_assemblycode(instructions, binary_lines, label_table):
+    pc = 0
     for instruction in instructions :
                 instruction=instruction.replace(","," ")
                 operands=instruction.split()
+                
+                if operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "R":
 
-                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="B") :
-                    register1=translate_register(operands[1])
-                    register2=translate_register(operands[2])
+                    rd  = reg_to_bin(operands[1])
+                    rs1 = reg_to_bin(operands[2])
+                    rs2 = reg_to_bin(operands[3])
+
+                    instruction_info = Opcodes[operands[0]]
+
+                    binarystring = (
+                        instruction_info["funct7"] +
+                        rs2 +
+                        rs1 +
+                        instruction_info["funct3"] +
+                        rd +
+                        instruction_info["opcode"]
+                    )
+
+                binary_lines.append(binarystring)
+
+                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="B") :
+                    rs1=reg_to_bin(operands[1])
+                    rs2=reg_to_bin(operands[2])
 
                     label=operands[3]
 
-                    offset=compute_offset(label,pc,label_table)
+                    offset=compute_offset(label, pc, label_table)
+                    
+                    if offset % 2 != 0:
+                        print("Error: Branch offset must be 2-byte aligned")
+                        sys.exit(1)
+                        
+                    imm = offset
+                    if imm < 0:
+                        imm = (1 << 13) + imm
 
                     imm = format((offset >> 1) & 0x1FFF, "013b")
 
@@ -204,12 +230,12 @@ def translate_assemblycode(instructions,binary_lines):
                     imm11 = imm[11]
 
                     binarystring = (
-                            imm12 +imm10_5 +rs2 +rs1 +opcodes[operands[0]]["funct3"] +imm4_1 +imm11 +opcodes[operands[0]]["opcode"]
+                            imm12 +imm10_5 +rs2 +rs1 +Opcodes[operands[0]]["funct3"] +imm4_1 +imm11 +Opcodes[operands[0]]["opcode"]
                     )
 
                     binary_lines.append(binarystring)
 
-                if(operands[0] in opcodes and opcodes[operands[0]]["format"]=="J") :
+                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="J") :
                     rd = translate_register(operands[1])
                     label = operands[2]
 
@@ -223,18 +249,10 @@ def translate_assemblycode(instructions,binary_lines):
                     imm19_12 = imm[1:9]
 
                     binarystring = (
-                            imm20 +imm10_1 +imm11+imm19_12 +rd +opcodes["jal"]["opcode"]
+                            imm20 +imm10_1 +imm11+imm19_12 +rd +Opcodes["jal"]["opcode"]
                     )
                     
                     binary_lines.append(binarystring)
-
-
-
-
-
-
-
-
 
 def write_output(output_path, binary) :
     try :
@@ -254,103 +272,18 @@ def write_readableoutput(readable_outputpath, binary) :
         print(f"Error while writing readable output file:{exc}")
         sys.exit(1)
         
-def bin_to_hex(bin_str):
-    decimal = int(bin_str, 2)
-    return format(decimal, '08x')
-
-def assemble_to_binary(assembly_lines, opcodes):
-    binary_lines = [] 
-    for line in assembly_lines:
-        parts = line.replace(",", " ").split()
-        opcode = parts[0]
-        operands = parts[1:]
-        
-        instruction_format = opcodes[opcode]["format"]
-        
-        if instruction_format == "R":
-            rd = reg_to_bin(operands[0])
-            rs1 = reg_to_bin(operands[1])
-            rs2 = reg_to_bin(operands[2])
-            funct7 = opcodes[opcode]["funct7"]
-            funct3 = opcodes[opcode]["funct3"]
-            op = opcodes[opcode]["opcode"]
-            binary = funct7 + rs2 + rs1 + funct3 + rd + op
-            
-        elif instruction_format == "I":
-            rd = reg_to_bin(operands[0])
-            rs1 = reg_to_bin(operands[1])
-            imm = int(operands[2])
-            imm_binary = format(imm & 0xFFF, "012b")
-            funct3 = opcodes[opcode]["funct3"]
-            op = opcodes[opcode]["opcode"]
-            binary = imm_binary + rs1 + funct3 + rd + op
-            
-        elif instruction_format == "S":
-            rs2 = reg_to_bin(operands[0])
-            offset_part = operands[1].split("(")
-            imm = int(offset_part[0])
-            rs1 = reg_to_bin(offset_part[1].rstrip(")"))
-            imm_binary = format(imm & 0xFFF, "012b")
-            funct3 = opcodes[opcode]["funct3"]
-            op = opcodes[opcode]["opcode"]
-            imm_upper = imm_binary[:7]
-            imm_lower = imm_binary[7:]
-            binary = imm_upper + rs2 + rs1 + funct3 + imm_lower + op
-            
-        elif instruction_format == "B":
-            rs1 = reg_to_bin(operands[0])
-            rs2 = reg_to_bin(operands[1])
-            imm = int(operands[2])
-            imm_binary = format(imm & 0x1FFF, "013b")
-            funct3 = opcodes[opcode]["funct3"]
-            op = opcodes[opcode]["opcode"]
-            binary = imm_binary[0] + imm_binary[1:7] + rs2 + rs1 + funct3 + imm_binary[7:12] + imm_binary[12] + op
-            
-        elif instruction_format == "U":
-            rd = reg_to_bin(operands[0])
-            imm = int(operands[1])
-            imm_binary = format(imm & 0xFFFFF, "020b")
-            op = opcodes[opcode]["opcode"]
-            binary = imm_binary + rd + op
-            
-        elif instruction_format == "J":
-            rd = reg_to_bin(operands[0])
-            imm = int(operands[1])
-            imm_binary = format(imm & 0x1FFFFF, "021b")
-            op = opcodes[opcode]["opcode"]
-            binary = imm_binary[0] + imm_binary[1:11] + imm_binary[11] + imm_binary[12:20] + rd + op
-        
-        hex_value = bin_to_hex(binary)
-        binary_lines.append(hex_value)
-    
-    return binary_lines
-
 def main():
-<<<<<<< HEAD
-    input_path, output_path, readable_path = extract_filepaths()
-    
-    assembly_lines = view_assemblycode(input_path)
-=======
     input_path, output_path, readable_path=extract_filepaths()
     assembly_lines=view_assemblycode(input_path)
->>>>>>> origin/main
 
-    binary_lines = assemble_to_binary(assembly_lines, Opcodes)
+    label_table, cleaned_instructions = build_label_table(assembly_lines)
 
-<<<<<<< HEAD
-    readable = binary_lines  
-
+    binary_lines = []
+    readable = []
+    
+    translate_assemblycode(cleaned_instructions, binary_lines, label_table)
+    
     write_output(output_path, binary_lines)
-=======
-    binary_lines=[] #, generated after logic implementation
-    readable=[], #readable binary output
-    
-    translate_assemblycode(assembly_lines,binary_lines)
-    
-    
-    write_output(output_path,binary_lines)
-    write_readableoutput(readable_outputpath,readable)
->>>>>>> origin/main
 
     if readable_path:
         write_readableoutput(readable_path, readable)
