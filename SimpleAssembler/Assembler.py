@@ -104,30 +104,27 @@ def reg_checker(register) :
     return n.isdigit() and 0<=int(n)<= 31
 
 def build_label_table(instructions):
-    labels = {}
+    label_table = {}
     program_counter = 0
     cleaned = []
 
     for line in instructions:
         if ":" in line:
-            label, rest = line.split(":", 1)
-            labels[label.strip()] = program_counter
+            label = line.replace(":", "").strip()
+            label_table[label] = program_counter
 
-            if rest.strip():
-                cleaned.append(rest.strip())
-                program_counter += 4
         else:
             cleaned.append(line)
             program_counter += 4
 
-    return labels,cleaned
+    return label_table, cleaned
 
-def compute_offset(label, current_pc, labels):
-    if label not in labels:
+def compute_offset(label, current_pc, label_table):
+    if label not in label_table:
         print(f"Error: Undefined label '{label}'")
         sys.exit(1)
 
-    return labels[label] - current_pc
+    return label_table[label] - current_pc
 
 
 def valid_instruction(instructionline , n) :
@@ -136,27 +133,7 @@ def valid_instruction(instructionline , n) :
     if instructionline=="" :
         return False
     
-        
-    if ":" in instructionline:
-        parts = instructionline.split(":", 1)
-        label = parts[0].strip()
-
-        
-        if not label.isidentifier():
-            print(f"Syntax Error (Line {n}): Invalid label name '{label}'")
-            sys.exit(1)
-
-        
-        if parts[1].strip()=="":
-            return instructionline
-
-        
-        instructionline=parts[1].strip()
-    
     part = instructionline.replace(",", " ").split()
-    if len(part) == 0:
-        return False
-
     
     opcode=part[0]
     
@@ -221,7 +198,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                         offset=operands[3]
                         register1=reg_to_bin(operands[2])
                     
-                    offset=int(offset,0)
+                    offset=int(offset)
                     if (offset < -2048) or (offset > 2047):
                             print("error!")
                             sys.exit(1)
@@ -235,16 +212,16 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     binary_lines.append(binarystring)
 
                 #S type instruction code
-                elif(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="S") :  #sw r2,imm(r1)
-                    register2=reg_to_bin(operands[1])        
-                    offset,base=operands[2].split("(")               
-                    offset=int(offset,0)
+                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="S") :  #sw r2,imm(r1)
+                    register2=reg_to_bin(operands[1])        #r2
+                    offset,base=operands[2].split("(")               #offset=imm, base=r1)
+                    offset=int(offset)
 
-                    if (offset < -2048) or (offset > 2047):     
+                    if (offset < -2048) or (offset > 2047):      #2's complement range
                         print("error!")
                         sys.exit(1)
                               
-                    register1=reg_to_bin(base.replace(")","")) 
+                    register1=reg_to_bin(base.replace(")",""))  #r1
 
                     imm = format(offset & 0xFFF,"012b")
                     
@@ -257,7 +234,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
 
                     binary_lines.append(binarystring)
                                     
-                elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "R":
+                if operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "R":
 
                     rd  = reg_to_bin(operands[1])
                     rs1 = reg_to_bin(operands[2])
@@ -274,18 +251,15 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                         instruction_info["opcode"]
                     )
 
-                    binary_lines.append(binarystring)
+                binary_lines.append(binarystring)
 
-                elif(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="B") :
+                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="B") :
                     rs1=reg_to_bin(operands[1])
                     rs2=reg_to_bin(operands[2])
 
                     label=operands[3]
 
-                    offset=compute_offset(label, pc, labels)
-                    if offset < -4096 or offset > 4094:
-                        print("Error: Branch offset out of range")
-                        sys.exit(1)
+                    offset=compute_offset(label, pc, label_table)
                     
                     if offset % 2 != 0:
                         print("Error: Branch offset must be 2-byte aligned")
@@ -295,64 +269,48 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     if imm < 0:
                         imm = (1 << 13) + imm
 
-                    imm >>= 1
-                    imm_bin = format(imm, "013b")
-                    imm12 = imm_bin[0]
-                    imm10_5 = imm_bin[1:7]
-                    imm4_1 = imm_bin[7:11]
-                    imm11 = imm_bin[11]
+                    imm = format((offset >> 1) & 0x1FFF, "013b")
+
+                    imm12 = imm[0]
+                    imm10_5 = imm[1:7]
+                    imm4_1 = imm[7:11]
+                    imm11 = imm[11]
 
                     binarystring = (
                             imm12 +imm10_5 +rs2 +rs1 +Opcodes[operands[0]]["funct3"] +imm4_1 +imm11 +Opcodes[operands[0]]["opcode"]
                     )
 
                     binary_lines.append(binarystring)
-                if (operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "U"):
 
-                elif(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="J") :
+                if(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="J") :
                     rd = reg_to_bin(operands[1])
                     label = operands[2]
 
-                    offset = compute_offset(label, pc, labels)
+                    offset = compute_offset(label, pc, label_table)
 
-                    
-                    if offset % 2 != 0:
-                        print("Error: Jump offset must be 2-byte aligned")
-                        sys.exit(1)
+                    imm = format((offset >> 1) & 0x1FFFFF, "021b")
 
-                    
-                    if offset < -1048576 or offset > 1048574:
-                        print("Error: Jump offset out of range")
-                        sys.exit(1)
+                    imm20 = imm[0]
+                    imm10_1 = imm[10:20]
+                    imm11 = imm[9]
+                    imm19_12 = imm[1:9]
 
-                    imm=offset
-                    if imm<0:
-                        imm=(1 << 21)+imm
-
-                    imm>>=1
-                    imm_bin=format(imm, "021b")
-
-                    # Bit extraction according to RISC-V J format
-                    imm20= imm_bin[0]
-                    imm10_1= imm_bin[10:20]
-                    imm11= imm_bin[9]
-                    imm19_12=imm_bin[1:9]
-
-                    binarystring = (imm20 +imm10_1 +imm11 +imm19_12 +rd +Opcodes["jal"]["opcode"]
+                    binarystring = (
+                            imm20 +imm10_1 +imm11+imm19_12 +rd +Opcodes["jal"]["opcode"]
                     )
-
+                    
                     binary_lines.append(binarystring)
-                elif (operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "U"):
+                if (operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "U"):
 
                     rd = reg_to_bin(operands[1])
                     try:
-                        imm_value = int(operands[2],0)
+                        imm_value = int(operands[2])
                     except:
                         print(f"Error: Invalid immediate '{operands[2]}'")
                         sys.exit(1)
 
-                    
-                    if imm_value< -524288 or imm_value > 524287:
+                    # 20-bit signed range check
+                    if imm_value < -524288 or imm_value > 524287:
                         print(f"Error: Immediate out of 20-bit range")
                         sys.exit(1)
 
@@ -363,13 +321,10 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     imm = format(imm_value, "020b")
 
                     binarystring = (
-                            imm +rd +Opcodes[operands[0]]["opcode"]
-                        )
-                        
-                    binary_lines.append(binarystring)
-
-                pc+=4
+                        imm +rd +Opcodes[operands[0]]["opcode"]
+                    )
                     
+                    binary_lines.append(binarystring)
 def write_output(output_path, binary) :
     try :
         with open(output_path,"w") as file :
@@ -392,12 +347,12 @@ def main():
     input_path, output_path, readable_path=extract_filepaths()
     assembly_lines=view_assemblycode(input_path)
 
-    labels, cleaned_instructions = build_label_table(assembly_lines)
+    label_table, cleaned_instructions = build_label_table(assembly_lines)
 
     binary_lines = []
     readable = []
     
-    translate_assemblycode(cleaned_instructions, binary_lines, labels)
+    translate_assemblycode(cleaned_instructions, binary_lines, label_table)
     
     write_output(output_path, binary_lines)
 
