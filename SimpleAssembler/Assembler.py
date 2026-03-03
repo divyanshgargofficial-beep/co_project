@@ -300,7 +300,31 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     )
                     
                     binary_lines.append(binarystring)
+                if (operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "U"):
 
+                    rd = reg_to_bin(operands[1])
+                    try:
+                        imm_value = int(operands[2])
+                    except:
+                        print(f"Error: Invalid immediate '{operands[2]}'")
+                        sys.exit(1)
+
+                    # 20-bit signed range check
+                    if imm_value < -524288 or imm_value > 524287:
+                        print(f"Error: Immediate out of 20-bit range")
+                        sys.exit(1)
+
+                    # Convert to 20-bit signed binary
+                    if imm_value < 0:
+                        imm_value = (1 << 20) + imm_value
+
+                    imm = format(imm_value, "020b")
+
+                    binarystring = (
+                        imm +rd +Opcodes[operands[0]]["opcode"]
+                    )
+                    
+                    binary_lines.append(binarystring)
 def write_output(output_path, binary) :
     try :
         with open(output_path,"w") as file :
