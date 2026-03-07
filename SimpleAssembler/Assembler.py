@@ -2,7 +2,7 @@ import sys
 import os
 import re
 
-abi = {
+registerrefrence={
     "zero":0, "ra":1, "sp":2, "gp":3, "tp":4,
     "t0":5, "t1":6, "t2":7,
     "s0":8, "fp":8, "s1":9,
@@ -11,12 +11,12 @@ abi = {
     "t3":28,"t4":29,"t5":30,"t6":31
 }
 
-def registertobinaru(reg):
-    if reg not in abi:
-        print(f"Error found : Invalid register '{reg}'")
+def registertobinaru(register):
+    if register not in registerrefrence:
+        print(f"Error found : Invalid register '{register}'")
         sys.exit(1)
 
-    return format(abi[reg], "05b")
+    return format(registerrefrence[register], "05b")
 
 Opcodes={
 
@@ -99,47 +99,45 @@ def reg_checker(register) :
         return False
 
     n=register[1:]
-
     return n.isdigit() and 0<=int(n)<= 31
 
-def build_label_table(instructions):
-    labels={}
+def build_labelel_table(instructions):
+    labelels={}
     program_counter=0
-    cleaned=[]
+    filteredins=[]
 
     for line in instructions:
         if ":" in line:
-            lab, rest=line.split(":", 1)
-            lab=lab.strip()
+            label, rest=line.split(":", 1)
+            label=label.strip()
 
             
-            if lab in labels:
-                print(f"Error: Duplicate lab '{lab}'")
+            if label in labelels:
+                print(f"Error: Duplicate label '{label}'")
                 sys.exit(1)
 
-            labels[lab]=program_counter
+            labelels[label]=program_counter
 
             if rest.strip():
-                cleaned.append(rest.strip())
+                filteredins.append(rest.strip())
                 program_counter += 4
         else:
-            cleaned.append(line)
+            filteredins.append(line)
             program_counter+=4
 
-    return labels, cleaned
+    return labelels,filteredins
 
-def compute_offset(lab, current_pc, label_table):
-    if lab not in label_table:
-        print(f"Error: Undefined lab '{lab}'")
+def finding_offset(label, current_pc, labelel_table):
+    if label not in labelel_table:
+        print(f"Error: Undefined label '{label}'")
         sys.exit(1)
 
-    return label_table[lab] - current_pc
+    return labelel_table[label] - current_pc
 
 
 def valid_instruction(instructionline, n):
 
     instructionline=instructionline.split("#")[0].strip()
-
     if instructionline == "":
         return False
 
@@ -147,14 +145,13 @@ def valid_instruction(instructionline, n):
 
     
     if ":" in instructionline:
-        lab,rest=instructionline.split(":", 1)
+        label,rest=instructionline.split(":", 1)
 
-        if lab.strip() == "":
-            print(f"Syntax Error (Line {n}): Invalid lab")
+        if label.strip() == "":
+            print(f"Syntax Error (Line {n}): Invalid label")
             sys.exit(1)
 
         temp=rest.strip()
-
         if temp == "":
             return instructionline
 
@@ -203,7 +200,7 @@ def view_assemblycode(input_path) :
         print(f"Error while reading input file: {exc}")
         sys.exit(1)
 
-def translate_assemblycode(instructions, binary_lines, label_table):
+def translate_assemblycode(instructions, binary_lines, labelel_table):
     pc = 0
     for instruction in instructions :
                 instruction=instruction.replace(","," ").strip()
@@ -213,7 +210,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                 #I 
                 if operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "I":
 
-                    rd = registertobinaru(operands[1])
+                    final_regis = registertobinaru(operands[1])
 
                     if operands[0] == "lw":
                         offset, base = operands[2].split("(")
@@ -235,7 +232,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     immediate = format(offset & 0xFFF,"012b")
 
                     binarystring=(
-                        immediate +register1 +Opcodes[operands[0]]["funct3"] +rd +Opcodes[operands[0]]["opcode"])
+                        immediate +register1 +Opcodes[operands[0]]["funct3"] +final_regis +Opcodes[operands[0]]["opcode"])
 
                     binary_lines.append(binarystring)
 
@@ -249,7 +246,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                         print("error!")
                         sys.exit(1)
                               
-                    register1=registertobinaru(base.replace(")",""))  #r1
+                    register1=registertobinaru(base.replace(")",""))  
 
                     immediate = format(offset & 0xFFF,"012b")
                     
@@ -263,14 +260,14 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                                     
                 elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "R":
 
-                    rd=registertobinaru(operands[1])
+                    final_regis=registertobinaru(operands[1])
                     rs1=registertobinaru(operands[2])
                     rs2=registertobinaru(operands[3])
 
                     instruction_info=Opcodes[operands[0]]
 
                     binarystring=(
-                        instruction_info["funct7"] +rs2 +rs1 +instruction_info["funct3"] +rd +instruction_info["opcode"])
+                        instruction_info["funct7"] +rs2 +rs1 +instruction_info["funct3"] +final_regis +instruction_info["opcode"])
 
                     binary_lines.append(binarystring)
 
@@ -283,7 +280,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     try:
                         offset=int(target,0)
                     except ValueError:
-                        offset=compute_offset(target, pc, label_table)
+                        offset=finding_offset(target, pc, labelel_table)
 
                     if offset%2!=0:
                         print("Error: Branch offset must be aligned")
@@ -293,9 +290,9 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                         offset=(1<<13)+offset
 
                     imm12=(offset>>12) & 1
-                    imm10_5 = (offset >> 5) & 0x3F
-                    imm4_1 = (offset >> 1) & 0xF
-                    imm11 = (offset >> 11) & 1
+                    imm10_5=(offset >> 5) & 0x3F
+                    imm4_1=(offset >> 1) & 0xF
+                    imm11=(offset >> 11) & 1
 
                     binarystring = (
                         format(imm12,"1b") +format(imm10_5,"06b") +rs2 +rs1 +Opcodes[operands[0]]["funct3"] +format(imm4_1,"04b") +format(imm11,"1b") +Opcodes[operands[0]]["opcode"]
@@ -305,22 +302,22 @@ def translate_assemblycode(instructions, binary_lines, label_table):
 
                 elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "J":
 
-                    rd=registertobinaru(operands[1])
-                    lab=operands[2]
+                    final_regis=registertobinaru(operands[1])
+                    label=operands[2]
 
-                    offset=compute_offset(lab,pc,label_table)
+                    offset=finding_offset(label,pc,labelel_table)
 
                     if offset < 0:
                         offset = (1 << 21) + offset
 
-                    imm20   = (offset >> 20) & 1
+                    imm20=(offset >> 20) & 1
                     imm10_1 = (offset >> 1)  & 0x3FF
                     imm11   = (offset >> 11) & 1
                     imm19_12= (offset >> 12) & 0xFF
 
                     binarystring = (format(imm20,"1b") +format(imm10_1,"010b") +format(imm11,"1b") +
                         format(imm19_12,"08b") +
-                        rd +
+                        final_regis +
                         Opcodes["jal"]["opcode"]
                     )
 
@@ -329,7 +326,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
                     
                 elif (operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "U"):
 
-                    rd = registertobinaru(operands[1])
+                    final_regis = registertobinaru(operands[1])
                     try:
                         imm_value=int(operands[2])
                     except:
@@ -347,7 +344,7 @@ def translate_assemblycode(instructions, binary_lines, label_table):
 
                     immediate = format(imm_value, "020b")
 
-                    binarystring = (immediate +rd +Opcodes[operands[0]]["opcode"])
+                    binarystring = (immediate +final_regis +Opcodes[operands[0]]["opcode"])
                     
                     binary_lines.append(binarystring)
                 pc+=4
@@ -374,7 +371,7 @@ def main():
 
     assembly_lines = view_assemblycode(input_path)
 
-    label_table, cleaned_instructions = build_label_table(assembly_lines)
+    labelel_table, cleaned_instructions = build_labelel_table(assembly_lines)
 
     if len(cleaned_instructions) > 64:
         print("Error: Program memory overflow (max 64 instructions)")
@@ -389,8 +386,8 @@ def main():
     for inst in cleaned_instructions:
         parts = inst.replace(",", " ").split()
 
-        if(len(parts) == 4 and parts[0] == "beq" and parts[1] in ["zero", "x0"] and parts[2] in ["zero", "x0"] and parts[3] == "0"):
-            halt_found = True
+        if(len(parts)== 4 and parts[0] == "beq" and parts[1] in ["zero", "x0"] and parts[2] in ["zero", "x0"] and parts[3] == "0"):
+            halt_found=True
             break
 
     if not halt_found:
@@ -401,7 +398,7 @@ def main():
     binary_lines = []
     readable = []
 
-    translate_assemblycode(cleaned_instructions, binary_lines, label_table)
+    translate_assemblycode(cleaned_instructions, binary_lines, labelel_table)
 
     write_output(output_path, binary_lines)
 
