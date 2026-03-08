@@ -273,6 +273,9 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
                     if offset%2!=0:
                         print("Error: Branch offset must be aligned")
                         sys.exit(1)
+                    if (offset<-4096 or offset>4094):
+                        print("Error! Branch offset out of range")
+                        sys.exit(1)
 
                     if offset<0:
                         offset=(1<<13)+offset
@@ -321,6 +324,13 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
 
                     offset=finding_offset(label,pc,labelel_table)
 
+                    if offset%2 !=0:
+                        print("Error: Offset must be aligned")
+                        sys.exit(1)
+                    if (offset<-1048576 or offset>1048574):
+                        print("Error: Offset is out of range")
+                        sys.exit(1)
+                        
                     if offset < 0:
                         offset = (1 << 21) + offset
 
