@@ -11,7 +11,7 @@ registerrefrence={
     "t3":28,"t4":29,"t5":30,"t6":31
 }
 
-def registertobinaru(register):
+def registertobinary(register):
     if register not in registerrefrence:
         print(f"Error found : Invalid register '{register}'")
         sys.exit(1)
@@ -55,11 +55,11 @@ Opcodes={
 "bltu": {"format": "B", "opcode": "1100011", "funct3": "110", "operands": 3},
 "bgeu": {"format": "B", "opcode": "1100011", "funct3": "111", "operands": 3},
 
-#JUMP 
+#J-TYPE
 
 "jal":  {"format": "J", "opcode": "1101111", "operands": 2},
 
-#U TYPE
+#U-TYPE
 
 "lui":   {"format": "U", "opcode": "0110111", "operands": 2},
 "auipc": {"format": "U", "opcode": "0010111", "operands": 2},
@@ -193,21 +193,35 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
                 instruction=instruction.replace(","," ").strip()
                 operands=instruction.split()
 
+                #R                    
+                if operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "R":
+
+                    final_regis=registertobinary(operands[1])
+                    rs1=registertobinary(operands[2])
+                    rs2=registertobinary(operands[3])
+
+                    instruction_info=Opcodes[operands[0]]
+
+                    binarystring=(
+                        instruction_info["funct7"] +rs2 +rs1 +instruction_info["funct3"] +final_regis +instruction_info["opcode"])
+
+                    binary_lines.append(binarystring)
+                
                 #I 
-                if operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "I":
-                    final_regis = registertobinaru(operands[1])
+                elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "I":
+                    final_regis = registertobinary(operands[1])
 
                     if operands[0] == "lw":
                         offset, base = operands[2].split("(")
-                        register1 = registertobinaru(base.replace(")", ""))
+                        register1 = registertobinary(base.replace(")", ""))
                         offset = int(offset,0)
 
                     elif operands[0] == "jalr":
-                        register1 = registertobinaru(operands[2])
+                        register1 = registertobinary(operands[2])
                         offset = int(operands[3],0)
                         
                     else:
-                        register1 = registertobinaru(operands[2])
+                        register1 = registertobinary(operands[2])
                         offset = int(operands[3],0)
 
                     if (offset<-2048 or offset > 2047):
@@ -224,7 +238,7 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
 
                 #S 
                 elif(operands[0] in Opcodes and Opcodes[operands[0]]["format"]=="S") :  
-                    register2=registertobinaru(operands[1])        
+                    register2=registertobinary(operands[1])        
                     offset,base=operands[2].split("(")              
                     offset=int(offset,0)
 
@@ -232,7 +246,7 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
                         print("Error: Immediate out of range")
                         sys.exit(1)
                               
-                    register1=registertobinaru(base.replace(")",""))  
+                    register1=registertobinary(base.replace(")",""))  
 
                     immediate = format(offset & 0xFFF,"012b")
                     
@@ -243,26 +257,12 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
                         imm11_5 + register2 + register1 + Opcodes[operands[0]]["funct3"] + imm4_0 + Opcodes[operands[0]]["opcode"])
 
                     binary_lines.append(binarystring)
-
-                #R                    
-                elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "R":
-
-                    final_regis=registertobinaru(operands[1])
-                    rs1=registertobinaru(operands[2])
-                    rs2=registertobinaru(operands[3])
-
-                    instruction_info=Opcodes[operands[0]]
-
-                    binarystring=(
-                        instruction_info["funct7"] +rs2 +rs1 +instruction_info["funct3"] +final_regis +instruction_info["opcode"])
-
-                    binary_lines.append(binarystring)
-
+                                        
                 #B
                 elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "B":
 
-                    rs1=registertobinaru(operands[1])
-                    rs2=registertobinaru(operands[2])
+                    rs1=registertobinary(operands[1])
+                    rs2=registertobinary(operands[2])
                     target=operands[3]
 
                     try:
@@ -288,34 +288,10 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
 
                     binary_lines.append(binarystring)
 
-                #J
-                elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "J":
-
-                    final_regis=registertobinaru(operands[1])
-                    label=operands[2]
-
-                    offset=finding_offset(label,pc,labelel_table)
-
-                    if offset < 0:
-                        offset = (1 << 21) + offset
-
-                    imm20=(offset >> 20) & 1
-                    imm10_1 = (offset >> 1)  & 0x3FF
-                    imm11   = (offset >> 11) & 1
-                    imm19_12= (offset >> 12) & 0xFF
-
-                    binarystring = (format(imm20,"1b") +format(imm10_1,"010b") +format(imm11,"1b") +
-                        format(imm19_12,"08b") +
-                        final_regis +
-                        Opcodes["jal"]["opcode"]
-                    )
-
-                    binary_lines.append(binarystring)
-
                 #U    
                 elif (operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "U"):
 
-                    final_regis = registertobinaru(operands[1])
+                    final_regis = registertobinary(operands[1])
                     try:
                         imm_value=int(operands[2])
                     except:
@@ -336,6 +312,31 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
                     binarystring = (immediate +final_regis +Opcodes[operands[0]]["opcode"])
                     
                     binary_lines.append(binarystring)
+                
+                #J
+                elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "J":
+
+                    final_regis=registertobinary(operands[1])
+                    label=operands[2]
+
+                    offset=finding_offset(label,pc,labelel_table)
+
+                    if offset < 0:
+                        offset = (1 << 21) + offset
+
+                    imm20=(offset >> 20) & 1
+                    imm10_1 = (offset >> 1)  & 0x3FF
+                    imm11   = (offset >> 11) & 1
+                    imm19_12= (offset >> 12) & 0xFF
+
+                    binarystring = (format(imm20,"1b") +format(imm10_1,"010b") +format(imm11,"1b") +
+                        format(imm19_12,"08b") +
+                        final_regis +
+                        Opcodes["jal"]["opcode"]
+                    )
+
+                    binary_lines.append(binarystring)
+                    
                 pc+=4
 
 
