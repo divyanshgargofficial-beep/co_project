@@ -24,40 +24,26 @@ Opcodes={
 
 "add":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0000000", "operands": 3},
 "sub":  {"format": "R", "opcode": "0110011", "funct3": "000", "funct7": "0100000", "operands": 3},
-"sll":  {"format": "R", "opcode": "0110011", "funct3": "001", "funct7": "0000000", "operands": 3},
 "slt":  {"format": "R", "opcode": "0110011", "funct3": "010", "funct7": "0000000", "operands": 3},
 "sltu": {"format": "R", "opcode": "0110011", "funct3": "011", "funct7": "0000000", "operands": 3},
 "xor":  {"format": "R", "opcode": "0110011", "funct3": "100", "funct7": "0000000", "operands": 3},
+"sll":  {"format": "R", "opcode": "0110011", "funct3": "001", "funct7": "0000000", "operands": 3},
 "srl":  {"format": "R", "opcode": "0110011", "funct3": "101", "funct7": "0000000", "operands": 3},
-"sra":  {"format": "R", "opcode": "0110011", "funct3": "101", "funct7": "0100000", "operands": 3},
 "or":   {"format": "R", "opcode": "0110011", "funct3": "110", "funct7": "0000000", "operands": 3},
 "and":  {"format": "R", "opcode": "0110011", "funct3": "111", "funct7": "0000000", "operands": 3},
 
 # I-TYPE 
 
 "addi":  {"format": "I", "opcode": "0010011", "funct3": "000", "operands": 3},
-"slti":  {"format": "I", "opcode": "0010011", "funct3": "010", "operands": 3},
 "sltiu": {"format": "I", "opcode": "0010011", "funct3": "011", "operands": 3},
-"xori":  {"format": "I", "opcode": "0010011", "funct3": "100", "operands": 3},
-"ori":   {"format": "I", "opcode": "0010011", "funct3": "110", "operands": 3},
-"andi":  {"format": "I", "opcode": "0010011", "funct3": "111", "operands": 3},
 
-"slli": {"format": "I", "opcode": "0010011", "funct3": "001", "funct7": "0000000", "operands": 3},
-"srli": {"format": "I", "opcode": "0010011", "funct3": "101", "funct7": "0000000", "operands": 3},
-"srai": {"format": "I", "opcode": "0010011", "funct3": "101", "funct7": "0100000", "operands": 3},
+# I-TYPE: LOAD and JUMP INSTRUCTIONS
 
-# I-TYPE: LOAD INSTRUCTIONS
-
-"lb":  {"format": "I", "opcode": "0000011", "funct3": "000", "operands": 2},
-"lh":  {"format": "I", "opcode": "0000011", "funct3": "001", "operands": 2},
 "lw":  {"format": "I", "opcode": "0000011", "funct3": "010", "operands": 2},
-"lbu": {"format": "I", "opcode": "0000011", "funct3": "100", "operands": 2},
-"lhu": {"format": "I", "opcode": "0000011", "funct3": "101", "operands": 2},
+"jalr": {"format": "I", "opcode": "1100111", "funct3": "000", "operands": 3},
 
 # S-TYPE
 
-"sb": {"format": "S", "opcode": "0100011", "funct3": "000", "operands": 2},
-"sh": {"format": "S", "opcode": "0100011", "funct3": "001", "operands": 2},
 "sw": {"format": "S", "opcode": "0100011", "funct3": "010", "operands": 2},
 
 # B-TYPE
@@ -72,7 +58,6 @@ Opcodes={
 #JUMP 
 
 "jal":  {"format": "J", "opcode": "1101111", "operands": 2},
-"jalr": {"format": "I", "opcode": "1100111", "funct3": "000", "operands": 3},
 
 #U TYPE
 
@@ -208,29 +193,8 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
                 instruction=instruction.replace(","," ").strip()
                 operands=instruction.split()
 
-        
                 #I 
                 if operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "I":
-                    
-                    #shift intructions 
-                    if operands[0] in ["slli","srli","srai"]:
-                        rd = registertobinaru(operands[1])
-                        rs1 = registertobinaru(operands[2])
-                        shift_amt = int(operands[3],0)
-                        if shift_amt < 0 or shift_amt > 31:
-                              print("Error: shift amount out of range")
-                              sys.exit(1)
-                        shiftamt_bin = format(shift_amt,"05b")
-                        funct7 = Opcodes[operands[0]]["funct7"]
-                        
-                        binarystring = (
-                             funct7 + shiftamt_bin + rs1 + Opcodes[operands[0]]["funct3"] + rd + Opcodes[operands[0]]["opcode"]
-                             )
-                        
-                        binary_lines.append(binarystring)
-                        continue
-
-                    #normal I type instructions
                     final_regis = registertobinaru(operands[1])
 
                     if operands[0] == "lw":
@@ -253,7 +217,8 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
                     immediate = format(offset & 0xFFF,"012b")
 
                     binarystring=(
-                        immediate +register1 +Opcodes[operands[0]]["funct3"] +final_regis +Opcodes[operands[0]]["opcode"])
+                        immediate +register1 +Opcodes[operands[0]]["funct3"] +final_regis +Opcodes[operands[0]]["opcode"]
+                        )
 
                     binary_lines.append(binarystring)
 
@@ -278,7 +243,8 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
                         imm11_5 + register2 + register1 + Opcodes[operands[0]]["funct3"] + imm4_0 + Opcodes[operands[0]]["opcode"])
 
                     binary_lines.append(binarystring)
-                                    
+
+                #R                    
                 elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "R":
 
                     final_regis=registertobinaru(operands[1])
@@ -292,6 +258,7 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
 
                     binary_lines.append(binarystring)
 
+                #B
                 elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "B":
 
                     rs1=registertobinaru(operands[1])
@@ -321,6 +288,7 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
 
                     binary_lines.append(binarystring)
 
+                #J
                 elif operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "J":
 
                     final_regis=registertobinaru(operands[1])
@@ -344,7 +312,7 @@ def translate_assemblycode(instructions, binary_lines, labelel_table):
 
                     binary_lines.append(binarystring)
 
-                    
+                #U    
                 elif (operands[0] in Opcodes and Opcodes[operands[0]]["format"] == "U"):
 
                     final_regis = registertobinaru(operands[1])
@@ -431,6 +399,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
