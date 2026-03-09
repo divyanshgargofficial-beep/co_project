@@ -186,6 +186,7 @@ def translator(instructions, binary_lines, label_table):
                 
                 info = Opcodes[operands[0]]
                 format_type = info["format"]
+                
 
                 #R                    
                 if format_type == "R":
@@ -300,6 +301,9 @@ def translator(instructions, binary_lines, label_table):
                         sys.exit(1)
 
                     # Convert to 20bituint
+                    
+                    
+                    
                     if imm_value < 0:
                         imm_value = (1 << 20) + imm_value
 
@@ -318,14 +322,21 @@ def translator(instructions, binary_lines, label_table):
                     if offset%2 !=0:
                         print("Error: Offset must be aligned")
                         sys.exit(1)
+                    
+                    
+                    
                     if (offset<-1048576 or offset>1048574):
                         print("Error: Offset is out of range")
                         sys.exit(1)
                         
+                    
+                    
                     if offset < 0:
                         offset = (1 << 21) + offset
 
                     imm20 = (offset >> 20) & 1
+                    
+                    
                     imm10_1 = (offset >> 1)  & 0x3FF
                     imm11 = (offset >> 11) & 1
                     imm19_12= (offset >> 12) & 0xFF
@@ -333,6 +344,7 @@ def translator(instructions, binary_lines, label_table):
                     binarystring = (format(imm20,"1b") +format(imm10_1,"010b") +format(imm11,"1b") +format(imm19_12,"08b") +final_reg +Opcodes["jal"]["opcode"])
                     binary_lines.append(binarystring)     
                 pc+=4
+            
 
 def outputer(path , binary) :
     try :
@@ -344,43 +356,41 @@ def outputer(path , binary) :
         sys.exit(1)
 
 def main():
+
     addregs()
-    input, output= extract_filepaths()
-    assembly_lines = viewer(input)
 
-    table , cleaned_instructions = label_table(assembly_lines)
+    inp, outp = extract_filepaths()
 
-    if len(cleaned_instructions) > 64:
-        print("Error: Program memory overflow (max 64 instructions)")
+    lines = viewer(inp)
+
+    labels, cleaned = label_table(lines)
+
+    if len(cleaned) > 64:
+        print("Program memory overflow")
         sys.exit(1)
 
-    if len(cleaned_instructions) == 0:
-        print("Error: Empty program")
+    if len(cleaned) == 0:
+        print("Empty program")
         sys.exit(1)
 
+    binary = []
 
+    # Running translation first so register/immediate errors are caught
+    translator(cleaned, binary, labels)
 
-    halt_found = False
+    last = cleaned[-1].replace(",", " ").split()
 
-    for i in range(len(cleaned_instructions)):
-        parts = cleaned_instructions[i].replace(",", " ").split()
+    if not (last[0] == "beq" and last[1] == "zero" and last[2] == "zero" and last[3] == "0"):
 
-        if parts[0] == "beq" and parts[1] == "zero" and parts[2] == "zero" and parts[3] == "0":
-            halt_found = True
+        print("Warning: Halt instruction appears before end of program in", inp)
 
-            if i != len(cleaned_instructions) - 1:
-                print(f"Warning: Halt instruction appears before end of program in {input}")
-                
+        # generate empty binary file
+        open(outp, "w").close()
+        return
 
-            break
+    # write binary only if halt is correct
+    outputer(outp, binary)
 
-    if not halt_found:
-        print(f"Error: Missing Virtual Halt instruction in {input}")
-        sys.exit(1)
-
-    binary_lines = []
-    translator(cleaned_instructions, binary_lines, table)
-    outputer(output, binary_lines)
 
 if __name__ == "__main__":
     main()
