@@ -365,15 +365,16 @@ def main():
 
         if len(parts) == 4 and parts[0] == "beq" and parts[1] == "zero" and parts[2] == "zero" and parts[3] == "0":
             halt_found = True
-
-            if i != len(cleaned_instructions) - 1:
-                print("Warning: Halt instruction appears before end of program")
-                
             break
 
     if halt_found == False:
         print("Error: Missing Virtual Halt instruction")
         sys.exit(1)
+        
+    if halt_found != len(cleaned_instructions) - 1:
+        print("Halt found before the end of the program. Terminating rest instructions !")
+    
+        cleaned_instructions = cleaned_instructions[:halt_found + 1]
 
     binary_lines = []
     translator(cleaned_instructions, binary_lines, table)
