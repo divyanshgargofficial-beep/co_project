@@ -70,36 +70,27 @@ Opcodes={
 }
 
 
-def extract_filepaths() :
+def extract_filepaths():
 
-    if len(sys.argv)<3 :
-        print("Error: Invalid number of Arguments")
-        print("Usage: python3 Assembler.py <input_file> <output_file> [readable_output_file]")
+    if len(sys.argv) != 3:
+        print("Usage: python3 Assembler.py <input_file> <output_file>")
         sys.exit(1)
-    
-    input_path=sys.argv[1]
-    output_path=sys.argv[2]
-    readable_outputpath=None 
-    if len(sys.argv) >= 4 :
-        readable_outputpath=sys.argv[3]
 
-    return input_path,output_path,readable_outputpath
+    input_path = sys.argv[1]
+    output_path = sys.argv[2]
 
-def reg_checker(operands, n):
-    for op in operands:
-        if op not in regref and not op.lstrip('-').isdigit():
-            print("Syntax Error (Line", n, "): Invalid register", op)
-            sys.exit(1)
+    return input_path, output_path
 
 def label_table(instructions):
     labels={}
     pc=0
     new_ins=[]
 
-    for line in instructions:
+    for line in instructions:   
         if ":" in line:
-            label, xtra =line.split(":", 1)
+            label, xtra = line.split(":", 1)
             label=label.strip()
+            
             if label in labels:
                 print(f"Error: Duplicate label '{label}'")
                 sys.exit(1)
@@ -108,14 +99,17 @@ def label_table(instructions):
 
             if xtra.strip():
                 new_ins.append(xtra.strip())
+                
                 pc += 4
+                
         else:
             new_ins.append(line)
+            
             pc+=4
-
     return labels,new_ins
 
 def finding_offset(label, current_pc, label_table):
+    
     if label not in label_table:
         print(f"Error: Undefined label '{label}'")
         sys.exit(1)
@@ -291,7 +285,6 @@ def translator(instructions, binary_lines, label_table):
 
                 #U    
                 elif (format_type == "U"):
-
                     final_reg = regtobin(operands[1])
                     try:
                         imm_value=int(operands[2])
@@ -308,10 +301,8 @@ def translator(instructions, binary_lines, label_table):
                     if imm_value < 0:
                         imm_value = (1 << 20) + imm_value
 
-                    immediate = format(imm_value, "020b")
-
-                    binarystring = (immediate +final_reg +Opcodes[operands[0]]["opcode"])
-                    
+                    imm = format(imm_value, "020b")
+                    binarystring = (imm +final_reg +Opcodes[operands[0]]["opcode"])  
                     binary_lines.append(binarystring)
                 
                 #J
@@ -332,19 +323,13 @@ def translator(instructions, binary_lines, label_table):
                     if offset < 0:
                         offset = (1 << 21) + offset
 
-                    imm20=(offset >> 20) & 1
+                    imm20 = (offset >> 20) & 1
                     imm10_1 = (offset >> 1)  & 0x3FF
-                    imm11   = (offset >> 11) & 1
+                    imm11 = (offset >> 11) & 1
                     imm19_12= (offset >> 12) & 0xFF
 
-                    binarystring = (format(imm20,"1b") +format(imm10_1,"010b") +format(imm11,"1b") +
-                        format(imm19_12,"08b") +
-                        final_reg +
-                        Opcodes["jal"]["opcode"]
-                    )
-
-                    binary_lines.append(binarystring)
-                    
+                    binarystring = (format(imm20,"1b") +format(imm10_1,"010b") +format(imm11,"1b") +format(imm19_12,"08b") +final_reg +Opcodes["jal"]["opcode"])
+                    binary_lines.append(binarystring)     
                 pc+=4
 
 def outputer(path , binary) :
@@ -357,11 +342,8 @@ def outputer(path , binary) :
         sys.exit(1)
 
 def main():
-    
     addregs()
-    
     input, output= extract_filepaths()
-
     assembly_lines = viewer(input)
 
     table , cleaned_instructions = label_table(assembly_lines)
@@ -374,23 +356,27 @@ def main():
         print("Error: Empty program")
         sys.exit(1)
 
+
+
     halt_found = False
 
-    for inst in cleaned_instructions:
-        parts = inst.replace(",", " ").split()
+    for i in range(len(cleaned_instructions)):
+        parts = cleaned_instructions[i].replace(",", " ").split()
 
-        if(len(parts)== 4 and parts[0] == "beq" and parts[1] in ["zero", "x0"] and parts[2] in ["zero", "x0"] and parts[3] == "0"):
-            halt_found=True
+        if len(parts) == 4 and parts[0] == "beq" and parts[1] == "zero" and parts[2] == "zero" and parts[3] == "0":
+            halt_found = True
+
+            if i != len(cleaned_instructions) - 1:
+                print("Warning: Halt instruction appears before end of program")
+                
             break
 
-    if not halt_found:
+    if halt_found == False:
         print("Error: Missing Virtual Halt instruction")
         sys.exit(1)
 
     binary_lines = []
-
     translator(cleaned_instructions, binary_lines, table)
-
     outputer(output, binary_lines)
 
 if __name__ == "__main__":
