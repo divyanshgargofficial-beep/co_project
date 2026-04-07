@@ -166,6 +166,42 @@ def execute(instr, registers, memory, PC):
             elif funct7 == "0100000":
                 registers[rd] = to_32bit(to_signed(registers[rs1]) >> (shamt & 0x1F))
 
+        #U TYPE
+    elif format_type == "LUI":
+        registers[rd] = to_32bit(int(instr[0:20], 2) << 12)
+
+    elif format_type == "AUIPC":
+        registers[rd] = to_32bit(PC + (int(instr[0:20], 2) << 12))      
+
+#BRANCH
+    elif format_type == "B":
+        imm = sign_extend(
+            int(instr[0] + instr[24] + instr[1:7] + instr[20:24] + "0", 2), 13
+        )
+        elif funct3 == "001" and to_signed(registers[rs1]) != to_signed(registers[rs2]):
+            next_PC = PC + imm
+        if funct3 == "000" and to_signed(registers[rs1]) == to_signed(registers[rs2]):
+            next_PC = PC + imm
+
+
+    #JUMP
+    elif format_type == "J":
+        imm = sign_extend(
+            int(instr[0] + instr[12:20] + instr[11] + instr[1:11] + "0", 2), 21
+        )
+        registers[rd] = to_32bit(PC + 4)
+        next_PC = PC + imm
+
+    elif format_type == "JALR":
+        imm = sign_extend(int(instr[0:12], 2), 12)
+        registers[rd] = to_32bit(PC + 4)
+        next_PC = (registers[rs1] + imm) & ~1
+
+
+
+    registers[0] = 0
+    return next_PC
+
     #LOA
     elif format_type == "LOAD":
         imm = sign_extend(int(instr[0:12], 2), 12)
