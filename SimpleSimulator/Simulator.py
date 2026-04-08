@@ -213,3 +213,44 @@ def execute(instr, registers, memory, PC):
         imm=sign_extend(int(instr[0:7] + instr[20:25], 2), 12)
         addr=to_32bit(registers[rs1] + imm)
         memory[addr]=to_32bit(registers[rs2])
+
+def main():
+    input_path, output_path = extract_paths()
+
+    raw_lines = []
+    with open(input_path, "r") as f:
+        for line in f:
+            for token in line.split():
+                token = token.strip()
+                if token.startswith("0b") or token.startswith("0B"):
+                    token = token[2:]
+                if token:
+                    raw_lines.append(token)
+
+    binarycheck(raw_lines)
+
+    registers = [0] * 32
+    registers[2] = 0x17C
+    memory = {}
+    PC = 0
+
+    with open(output_path, "w") as out:
+        while PC < len(raw_lines) * 4:
+            instr = raw_lines[PC // 4]
+            PC = execute(instr, registers, memory, PC)
+
+            line = [to_bin(PC)] + [to_bin(r) for r in registers]
+            out.write(" ".join(map(str, line)) + "\n")
+
+            # halt condition
+            if instr == "00000000000000000000000001100011":
+                break
+
+        for addr in range(0x00010000, 0x00010080, 4):
+            val = memory.get(addr, 0)
+            out.write(f"0x{addr:08X}:{to_bin(val)}\n")
+
+
+if __name__ == "__main__":
+    main()
+
