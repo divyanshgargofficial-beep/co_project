@@ -173,14 +173,27 @@ def execute(instr, registers, memory, PC):
     elif format_type == "AUIPC":
         registers[rd] = to_32bit(PC + (int(instr[0:20], 2) << 12))      
 
+
+
+    #LOA
+    elif format_type == "LOAD":
+        imm = sign_extend(int(instr[0:12], 2), 12)
+        addr = to_32bit(registers[rs1] + imm)
+        registers[rd] = to_32bit(memory.get(addr, 0))
+
+    #STORE 
+    elif format_type == "STORE":
+        imm=sign_extend(int(instr[0:7] + instr[20:25], 2), 12)
+        addr=to_32bit(registers[rs1] + imm)
+        memory[addr]=to_32bit(registers[rs2])
+
 #BRANCH
     elif format_type == "B":
         imm = sign_extend(
-            int(instr[0] + instr[24] + instr[1:7] + instr[20:24] + "0", 2), 13
-        )
-        elif funct3 == "001" and to_signed(registers[rs1]) != to_signed(registers[rs2]):
+            int(instr[0] + instr[24] + instr[1:7] + instr[20:24] + "0", 2), 13)
+        if (funct3 == "001") and (to_signed(registers[rs1]) != to_signed(registers[rs2])):
             next_PC = PC + imm
-        if funct3 == "000" and to_signed(registers[rs1]) == to_signed(registers[rs2]):
+        elif funct3 == "000" and to_signed(registers[rs1]) == to_signed(registers[rs2]):
             next_PC = PC + imm
 
 
@@ -201,18 +214,6 @@ def execute(instr, registers, memory, PC):
 
     registers[0] = 0
     return next_PC
-
-    #LOA
-    elif format_type == "LOAD":
-        imm = sign_extend(int(instr[0:12], 2), 12)
-        addr = to_32bit(registers[rs1] + imm)
-        registers[rd] = to_32bit(memory.get(addr, 0))
-
-    #STORE 
-    elif format_type == "STORE":
-        imm=sign_extend(int(instr[0:7] + instr[20:25], 2), 12)
-        addr=to_32bit(registers[rs1] + imm)
-        memory[addr]=to_32bit(registers[rs2])
 
 def main():
     input_path, output_path = extract_paths()
@@ -253,4 +254,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
