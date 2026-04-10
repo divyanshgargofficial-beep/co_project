@@ -1,6 +1,7 @@
 import sys
 
 
+
 def extract_paths():
     try:
         return sys.argv[1], sys.argv[2]
@@ -16,6 +17,8 @@ def binarycheck(binarystring):
             if bit not in ("0", "1"):
                 raise ValueError(f"Invalid bit: '{bit}'")
 
+def is_valid_address(addr):
+    return addr % 4 == 0
 
 #helper function
 def sign_extend(val, bits):
@@ -80,7 +83,7 @@ instr_type = {
 
 
 
-def execute(instr, registers, memory, PC):
+def execute(instr, registers, memory, PC,input_path):
     opcode = instr[25:32]
     funct3 = instr[17:20]
     funct7 = instr[0:7]
@@ -175,19 +178,25 @@ def execute(instr, registers, memory, PC):
 
 
 
-    #LOA
+    #LOAD
     elif format_type == "LOAD":
         imm = sign_extend(int(instr[0:12], 2), 12)
         addr = to_32bit(registers[rs1] + imm)
+        if not is_valid_address(addr):
+            print(f"Invalid Memory Access in {input_path}", file=sys.stderr)
+            sys.exit(0)
         registers[rd] = to_32bit(memory.get(addr, 0))
 
     #STORE 
     elif format_type == "STORE":
         imm=sign_extend(int(instr[0:7] + instr[20:25], 2), 12)
         addr=to_32bit(registers[rs1] + imm)
+        if not is_valid_address(addr):
+            print(f"Invalid Memory Access in {input_path}", file=sys.stderr)
+            sys.exit(0)
         memory[addr]=to_32bit(registers[rs2])
 
-#BRANCH
+    #BRANCH
     elif format_type == "B":
         imm = sign_extend(
             int(instr[0] + instr[24] + instr[1:7] + instr[20:24] + "0", 2), 13)
@@ -200,8 +209,7 @@ def execute(instr, registers, memory, PC):
     #JUMP
     elif format_type == "J":
         imm = sign_extend(
-            int(instr[0] + instr[12:20] + instr[11] + instr[1:11] + "0", 2), 21
-        )
+            int(instr[0] + instr[12:20] + instr[11] + instr[1:11] + "0", 2), 21)
         registers[rd] = to_32bit(PC + 4)
         next_PC = PC + imm
 
@@ -238,7 +246,7 @@ def main():
     with open(output_path, "w") as out:
         while PC < len(raw_lines) * 4:
             instr = raw_lines[PC // 4]
-            PC = execute(instr, registers, memory, PC)
+            PC = execute(instr, registers, memory, PC,input_path)
 
             line = [to_bin(PC)] + [to_bin(r) for r in registers]
             out.write(" ".join(map(str, line)) + "\n")
