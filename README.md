@@ -149,3 +149,6 @@ The test suite in `automatedTesting/` includes:
 ## 👥 Contributors
 
 - **Divyansh Garg** ([@divyanshgargofficial-beep](https://github.com/divyanshgargofficial-beep))
+- **Aariz** ([@aariz25311](https://github.com/aariz25311))
+- **Kunal Martolia** ([@Kunal-Dafuq](https://github.com/Kunal-Dafuq))
+- **haraloo** ([@haraloo](https://github.com/haraloo))
